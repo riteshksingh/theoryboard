@@ -2,7 +2,7 @@
 This part represnts the second part of the code which deals with the creation 
 and modification of the Lagrangian
 
-It has a total of 35 class methods(23 internal, 12 user).
+It has a total of 35 class methods(23 internal, 12 user) ---- This information is wrong need to be corrected.
 
 '''
 
@@ -476,7 +476,6 @@ class Lagrangian():
                             else:
                                 i3.append(i1[k])
                             i4.append(1)
-                    #print(i3, i4)
                     new_field=Field(y[j].name, (i3,i4),
                            field_type=y[j].field_type,
                            latex_name=y[j].latex_name,
@@ -490,7 +489,11 @@ class Lagrangian():
                 else:
                     term['fields'].append(FieldMul(*new_fields))
                 
-            self.L_exp.append(term) 
+            if 'out' in kwargs.keys():
+                return(term)
+            else:
+                self.L_exp.append(term) 
+
 
         else:
             new_index=[[],[]]
@@ -519,7 +522,11 @@ class Lagrangian():
             #only singlet indices case
             if index_dict=={}:
                 term['fields']=[*args]
-                self.L_exp.append(term)
+                
+                if 'out' in kwargs.keys():
+                    return(term)
+                else:
+                    self.L_exp.append(term)
            
             #when non singlet indices present.
             else:
@@ -608,11 +615,15 @@ class Lagrangian():
                         term['fields'].append(FieldMul(*new_field))
                 if term['delta']:
                      expr = self.eliminate_delta(term)
+                     if 'out' in kwargs.keys():
+                        return(expr)
                      self.L_exp.append(expr)
                     
                 else:
+                    if 'out' in kwargs.keys():
+                        return(term)
                     self.L_exp.append(term)
-                 
+                  
     #-------------------------------------------------------------------------------
     def create_delta(self, nlist1, nlist2):      #no connection with Lagrangian 
         '''
@@ -647,7 +658,6 @@ class Lagrangian():
             indices=[[list1[0][i],list2[0][i]],[list1[1][i],list2[1][i]]]
             #create delta from the method in Rep Class                      
             delta_list.append(Rep.rep_dict[index_type].delta(indices))  
-        #print(delta_list)                      
         return (delta_list)
                          
     #---------------------------------------------------------------------------
@@ -768,7 +778,6 @@ class Lagrangian():
         final=''
         
         for x in dict1:
-            #print(x)
             #if str(x['coupling'])==sympify('0'):
             #    continue
             #for coupling-------------------------------------------------------> may need modification if the coupling becomes complicated
@@ -868,7 +877,6 @@ class Lagrangian():
                            field_name+=down
                   
                 term+=field_name
-            #print(coupling + D+ term)
             final+=coupling+D+term
             #in the file code prints each term in a line
             file1.write('&'+coupling+D+term+'\\\\')
@@ -1174,7 +1182,6 @@ class Lagrangian():
     #---------------------------------------------------------------------------
     #@blockPrinting
     def Expand(self, keyword):
-        #print('start processing Expand')
         '''
         expand covdel and fstr using mapping function.
         
@@ -1302,12 +1309,10 @@ class Lagrangian():
         if terms_tbd:
             for i in terms_tbd:
                 self.L_exp.remove(i)     
-        #print('end processing Expand')  
 
     #---------------------------------------------------------------------------
     #@blockPrinting
     def mapping_function(self,keyword, field, field_lorentz=None): 
-        #print('start processing mapping function')
         #replacement of field strength and covariant derivative 
         field_list=[]
         if keyword=='fstr':
@@ -1443,7 +1448,6 @@ class Lagrangian():
                             #creation of t atrix
                             t_matrix = Rep.rep_dict[i1[i].index_type].T(g, \
                                                                   idx=idx_list)  
-                            #print('tmatrix', t_matrix, t_matrix.numerical_values)
                             t_matrix_indices=t_matrix.get_indices[0][-2:]
                             
                             
@@ -1491,7 +1495,6 @@ class Lagrangian():
                                     temp['dirac_pair']=[]
 
                             field_list.append(temp) 
-        #print('end processing mapping_function')
         return(field_list)
 
 
@@ -1679,10 +1682,8 @@ class Lagrangian():
                     adjoint=False
                 new_temp_list=[]
                 for t in temp_term_list:
-          #         #print('t', t)
                     pos1, pos2 = explicit_indices[key][0], \
                                  explicit_indices[key][1]
-         #           print('key, pos1, pos2', key, pos1, pos2)
                     new_fields_list=self.make_components(t['fields'][pos1],\
                                     t['fields'][pos2], Index.idx_dict[key], adjoint,LA,Numerical)
                     for x in range(len(new_fields_list[0])):
@@ -1715,9 +1716,7 @@ class Lagrangian():
                         #new_temp_list.append(temp_term)
                 
                 temp_term_list=new_temp_list
-                #print(temp_term_list)
             final_list.extend(temp_term_list)
-        #print('end processing make explicit')
         
         final_list=self.cleaning_up_after_explicit(final_list)
         return(final_list)
@@ -2660,332 +2659,179 @@ class Lagrangian():
         return(flag, x)
     
 
-
-#-------------------------------------------------------------------------------------
-    def Replace_2(self, field1, field2):
-        indices1=field1.field.get_indices[0]
-        print("r1", indices1)
-        new_lag=[]
-
-        #checking part need to be filled later
+#------------------------------------------------------------------------------------
+    def Replace3(self, field1, field2):
+        #field1 is the field to be replaced
+        #field2 is the list of fields is using to replace field1
+        #we need to make sure that the indices of the bothe field1 and the field 
+        #in list field2 matches 
+        #first step is to check whether the fields of both field1 and fielsds in field2
+        #matches 
+        new_lag=[] #new list to store the modified lagrangian
+        indices1= field1.field.get_indices[0]
+        #print('r1', indices1)
         rep1=[x.index_type for x in indices1]
-        print("r2", rep1)
+        singlet1=[Rep.rep_dict[x].singlet for x in rep1]
+        #print('r2', rep1, singlet1)
+        
+        #next step is to verify the that the fields we are replacing with matches 
+        #the field we are replacing in terms of indices/ representations
+        
         rep2=[]
+        for x in field2[1]:
+            if x!=1:
+                rep2_1=[y.index_type for y in  x.field.get_indices[0]]
+                if len(rep2_1) != len(rep1):
+                    raise Exception(" replacing is not possible because fields \\                                    are not compatiable")
+                if rep2_1 !=rep1:
+                    raise Exception("fields are not compatiable as reps \
+                                     are different")
+                
+            
+            else:
+                if False in singlet1:
+                    raise Exception(" no singlet field cannot be replaced with \\                                      a number")
+                pass
+            
+            
 
-        #replacement part
+        #preparing list of fields to compare
+        
         list1=[field1.field.name, field1.conj.name]
-        print("r6",list1)
-        field_conj_list=[x.conj  if x!=1 else None for x in field2[1]]
-        print("r7", field_conj_list)
-        field_list=[x.field  if x!=1 else None for x in field2[1]]
-        print("r8",field_list)
-
-
+        #print('r3', list1)
+        field_conj_list=[x.conj if x!=1 else None for x in field2[1]]
+        #print('r4', field_conj_list)
+        field_list=[x.field if x!=1 else None for x in field2[1]]
+        #print('r5', field_list)
+        
+        #creating symbols for the constants according to its type
         symbol_list=[]
         symbol_conjugate_list=[]
         for x in field2[0]:
             if isinstance(x, str):
-         #       print('yes')
                 c=Symbol(x, Real=False)
                 c_=c.conjugate()
             else:
                 c=x
                 c_=c.conjugate()
             symbol_list.append(c)
-            symbol_conjugate_list.append(c_)  
-        print("r9", symbol_list, symbol_conjugate_list)
-        ''' 
-            elif isinstance(x, MixingTensor):
-                print("I am a field")
-                c=1
-                c_=1
-                pos = field2[0].index(x)
-                pair= (x.field, field_list[pos])
-                pair_conjugate=(x.conj, field_conj_list[pos])
-                field_list[pos]=pair
-                field_conj_list[pos]=pair_conjugate
-               
-        '''
+            symbol_conjugate_list.append(c_)
+        #print(symbol_list, symbol_conjugate_list)
         for term in self.L_exp:
-            new_term=copy.deepcopy(term)
-            print('r10', new_term)
-            new_term['fields']=[]
-            new_field_list=[]
-            new_pattern=[]
-            print('r11', new_term)
-            for f in term['fields']:
-                if isinstance(f, FieldMul):
-                    pass
-                else:
-                    if f.name not in list1:
-                        new_field_list.append(f)
-                    else:
-                        which_field=list1.index(f.name)
-                        
-                    
-
-
-       
-        
-        return(0)
-        
-            
-
-
-#-------------------------------------------------------------------------------------
-    def Replace(self, field1, field2):
-        #print(field2)
-        #check if the fields have the same representation.
-        indices1=field1.field.get_indices[0]
-        print('r1', indices1)
-        new_lag=[]
-        #print(indices1)
-        #print(indices1[0].index_type)
-        rep1=[x.index_type for x in indices1]
-        
-        print("r2",'rep1',rep1)
-        rep2=[]
-        for field in field2[1]:
-            if field==1:
-                rep2_2=None
-            else:
-                indices=field.field.get_indices[0]
-                print("r3",indices)
-                rep2_2=[x.index_type for x in indices]
-                print("r4", rep2_2)
-            rep2.append(rep2_2)
-        print("r5",'rep2', rep2)
-        '''
-        if None in rep2:
-            for x in rep2:
-                print('x', x)
-                if x == None:
-                    continue 
-                print('I am here')
-                for y in range(len(x)) :
-                    print('y')
-                    print('y',  Rep.rep_dict[x[y]].singlet)
-
-                    if Rep.rep_dict[x[y]].singlet == False:
-                        
-                        raise Exception('Replacement is not possible as the Rep is non singlet')
-                    elif x[y]!=rep1[y]:
-                        raise Exception('Replacement is not possible as Reps are not matching')
-                    else:
-                        continue
-        else:
-            print(rep2)
-            print(rep1)
-            for x in rep2:
-                if x != rep1:
-                    raise Exception("Replacement is not possible as reps of the fields doesn't match")
-                else:
-                    continue
-          
-              
-            
-         
-        '''    
-        
-        #print('yes')
-        
-        #print(field2[1])
-        list1=[field1.field.name, field1.conj.name]
-        print("r6",list1)
-        field_conj_list=[x.conj  if x!=1 else None for x in field2[1]]
-        print("r7", field_conj_list)
-        field_list=[x.field  if x!=1 else None for x in field2[1]]
-        print("r8",field_list)
-        symbol_list=[]
-        symbol_conjugate_list=[]
-        
-        for x in field2[0]:
-            if isinstance(x, str):
-         #       print('yes')
-                c=Symbol(x, Real=False)
-                c_=c.conjugate()
-                
-            elif isinstance(x, MixingTensor):
-                print("I am a field")
-                c=1
-                c_=1
-                pos = field2[0].index(x)
-                pair= (x.field, field_list[pos])
-                pair_conjugate=(x.conj, field_conj_list[pos])
-                field_list[pos]=pair
-                field_conj_list[pos]=pair_conjugate
-               
-                
-            else:
-                c=x
-                c_=c.conjugate()
-            symbol_list.append(c)
-            symbol_conjugate_list.append(c_)    
-
-        print("r9", symbol_list, symbol_conjugate_list)       
-        #print(field_conj_list)
-        #beginning of replacement
-        print("r10","fieldlist, field_conj_list", field_list, field_conj_list)
-        for term in self.L_exp:
-            #print(term)
-            #flag=0
-            temp_term=copy.deepcopy(term)
-            print("r11", temp_term)
-            for field in temp_term['fields']:
-                print("r12", field)
+            temp_term= copy.deepcopy(term)
+            contraction_pattern=self.contraction_pattern(term)
+            for field in term['fields']:
+                multi=0
                 if isinstance(field, FieldMul):
                     f=field.fields[1]
-                    print("r13", f)
-                    if f.name in list1:
-                        which_field=list1.index(f.name)
-                        flag=1
-                        print("r14", which_field, flag)
-                        #print('field is matching')
-                        pos=temp_term['fields'].index(field)
-                        print("r15", pos)
-                        #need to put correct indices and del s well
-                        if which_field==0:
-                            new_indices=f.get_indices
-                            field_list_updated=[]
-                            symbol_list_updated=[]
-                            for x in range(len(field_list)):
-                                if isinstance(field_list[x], Field):
-                                    new_f=deepcopy(field_list[x])
-                                    new_f.indices=new_indices
-                                    new_field=FieldMul(field.fields[0], new_f)
-                                    field_list_updated.append(new_field)
-                                    symbol_list_updated.append(symbol_list[x])
-                                    
-                                else:
-                                    continue
-                            temp_term['fields'][pos]=[symbol_list_updated, field_list_updated]
-                                
-                            
-                        if which_field==1:
-                            new_indices=f.get_indices
-                            field_conj_updated=[]
-                            symbol_conj_updated=[]
-                            for x in range(len(field_conj_list)):
-                                if isinstance(field_conj_list[x], Field):
-                                    new_f=deepcopy(field_conj_list[x])
-                                    new_f.indices=new_indices
-                                    new_field=FieldMul(field.fields[0], new_f)
-                                    symbol_conj_updated.append(symbol_conjugate_list[x])
-                                else:
-                                    continue
-                                field_conj_updated.append(new_field)
-                            temp_term['fields'][pos]=[symbol_conj_updated,field_conj_updated]
-
-                    #when the field is single component
+                    multi=1
                 else:
-                    if field.name in list1:
-                        which_field=list1.index(field.name)
-                        flag=1
-                        #print('field is matching')
-                        pos=temp_term['fields'].index(field)
-                        if which_field==0:
-                            new_indices=field.get_indices
-                            field_list_updated=[]
-                            for x in field_list:
-                                if isinstance(x, Field):
-                                    new_field=deepcopy(x)
-                                    new_field.indices=new_indices
-                                else:
-                                    new_field=x
-                                field_list_updated.append(new_field)
-                            temp_term['fields'][pos]=[symbol_list, field_list_updated]
-                        if which_field==1:
-                            new_indices=field.get_indices
-                            field_conj_updated=[]
-                            for x in field_conj_list:
-                                if isinstance(x, Field):
-                                    new_field=deepcopy(x)
-                                    new_field.indices=new_indices
-                                else:
-                                    new_field=x
-                                field_conj_updated.append(new_field)
-                            temp_term['fields'][pos]=[symbol_conjugate_list,field_conj_updated]
-
-            #print(temp_term)
-            #pass this temp_term to a function
-            print( 'temp_term', temp_term)
-            new_term=self.field_associative(temp_term, flag)
-            print("new_term", new_term)
-            #check if tuple is present in a list. 
-            '''
-            print(new_term["fields"])         
-            for m in new_term['fields']:
-                new_field_list=[]
-                
-                if isinstance(x, tuple):
-                    print("inside the tuple part")
-                    index= new_term["fields"].index(x)
-                    tuple_split_list =self.split_tuple(x)
-                    new_field_list.extend(tuple_split_list, index)
-
-                else:
-                    new_field_list.append(x)
- 
-            new_term['fields']= new_field_list 
-            '''
-            new_lag.extend(new_term)             
+                    f=field
+                if f.name in list1:
+                    which_field=list1.index(f.name)
+                    flag=1
+                    pos=term['fields'].index(field)
+                    #if which_field==0:
+                    field_list_updated=[]
+                    symbol_list_updated=[]
+                    for x in range(len(field_list)):
+                        if isinstance(field_list[x], Field):
+                            if which_field==0:
+                                new_f=deepcopy(field_list[x])
+                                symbol_list_updated.append(symbol_list[x])
+                            else:
+                                new_f=deepcopy(field_conj_list[x])
+                                symbol_list_updated.append(symbol_conjugate_list[x])
+                            if multi==1:
+                                new_field=FieldMul(field.fields[0], new_f)
+                            else:
+                                new_field=new_f
+                            field_list_updated.append(new_field)
                             
-        #print(new_lag)
+                        else:
+                            continue
+                    temp_term['fields'][pos]=[symbol_list_updated, field_list_updated]
+            new_term=self.field_associative2(term, temp_term, contraction_pattern)
+            new_lag.extend(new_term)
+            
         return(new_lag)
+#--------------------------------------------------------------------------------
+    def field_associative2(self, ori_term, term, contraction):
+        pos_list=[]
+        
+        for x in range(len(term['fields'])):
+            if isinstance(term['fields'][x], list):
+                pos_list.append(x)
+            else:
+                continue
+        temp_term=deepcopy(ori_term)
+        lag=[ori_term]
+        for m in pos_list:
+            replace=term['fields'][m]
+            final_list=[]
+            for t in lag:
 
-    #--------------------------------------------------------------------------------
+               for y in range(len(replace[0])):
+               
+                  temp=deepcopy(t)
+                  temp['fields'][m]=replace[1][y]
+                  temp['coupling']*=replace[0][y]
+                  final_list.append(temp)
+            lag=final_list
+        new_lag=[]
+        print(len(lag))
+        print(contraction)
+        
+        for x in lag:
+            new_term=self.AddTerm(str(x['coupling']), *x['fields'],out=True, contraction_pattern=contraction)
+            new_lag.append(new_term)
+        
+        return(new_lag)
+        
+            
+  #--------------------------------------------------------------------------------
     def split_tuple(self, field_tuple, index):
         print("inside split_tuple")
         dummy_field1= field_tuple[0]
         #new_index= Index(dummy_field1.get_indices()[1][1].intex_type
         new_field_constant=Field(dummy_field1.name)
         return(0)        
-        
+#------------------------------------------------------------------------------
+    def contraction_pattern(self, term):
+        explicit_indices={}
+        print(term)
+        length=len(term['fields'])
+        pattern_list=[]
+        track_dict={}
+        count=1
+        for f in term['fields']:
+            print(f)
+            pattern=[]
+            indices=f.get_indices
+            #cases=f.get_indices[1]
+            #print(indices, cases)
+            for idx in range(len(indices[0])):
+                #if (Rep.rep_dict[idx.index_type].group.name in group_names)\
+                #and (Rep.rep_dict[idx.index_type].singlet==False):
+                if Rep.rep_dict[indices[0][idx].index_type].singlet==True:
+                    pattern.append(0)
+                elif indices[0][idx].index in track_dict.keys():
+                    pattern.append(track_dict[indices[0][idx].index]*indices[1][idx])
+                else:
+                    track_dict.update({indices[0][idx].index:count})  
+                    pattern.append(count*indices[1][idx])
+                    count+=1
+                
 
-    #--------------------------------------------------------------------------------
-    def field_associative(self, term, flag=0):
-        
-        #print(1, term)
-        pos_list=[]
-        lag=[term]
-        for x in range(len( term['fields'])):
-            if isinstance(term['fields'][x], list):
-                pos_list.append(x)
-            else:
-                continue
-        #print(2, pos_list)
-        
-        for m in pos_list:
-         #   print(m)
-          #  print(3, lag)
-            final_list=[]
-            for t in lag:
-           #     print(3.5, len(lag))
-            #    print(t)
-        
-                #if isinstance(t['fields'][m], list) != True:
-                 #   continue
-             #   print('yes')
-
-                replace=t['fields'][m]
-              #  print(4,  replace)
-                for y in range(len(replace[0])):
-                    #print(y)
-                    temp_t=deepcopy(t)
-                    temp_t['fields'][m]=replace[1][y]
-               #     print(isinstance(replace[0][y], Symbol))
-                    temp_t['coupling']*=replace[0][y]
-                     
-            #        print(5, temp_t)
-                    final_list.append(temp_t)
-
-
-            lag=final_list
-        if flag==1:
-            lag=self.cleaning_up_after_explicit(lag)
+            pattern_list.append(pattern)
+        print(pattern_list)
       
-        #print(6,final_list)
-        return(lag)     
+        #print(pattern_list)
+        return(pattern_list)
+                          
+                        
+
+        
 
     
 

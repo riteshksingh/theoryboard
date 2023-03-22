@@ -1,0 +1,12 @@
+\documentclass[9pt]{article}
+\usepackage{amsmath,amssymb,geometry}
+\allowdisplaybreaks
+\begin{document}
+\begin{align*}
+&- \frac{1}{4}  F^{a_1\mu_1\mu_2} F_{a_1\mu_1\mu_2}\\
+&+ j  (C_{Lorentz})^{\mu_1\mu_2\mu_3\mu_4} F^{a_1}_{\mu_4\mu_3} F_{a_1\mu_2\mu_1}\\
+&- k  (C_{SU(2)})^{a_1a_2i_1i_2} (C_{Lorentz})^{\mu_1\mu_2\mu_3\mu_4} F_{a_2\mu_4\mu_3} F_{a_1\mu_2\mu_1}  (\phi_{i_2})^{\dagger} \phi_{i_1}\\
+&+ l  (C_{SU(2)})^{a_1a_2a_3} (C_{Lorentz})^{\mu_1\mu_2\mu_3} W_{a_3\mu_3} W_{a_2\mu_2} W_{a_1\mu_1}\\
+&- m  F^{a_1\mu_1\mu_2} F_{a_1\mu_1\mu_2}  (\phi^{i_1})^{\dagger} \phi_{i_1}\\
+\end{align*}
+\end{document}
