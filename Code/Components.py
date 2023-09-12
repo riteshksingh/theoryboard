@@ -569,10 +569,11 @@ class ConstantTensor():   #Is it better to rename it as constant tensor with any
     def __init__(self, name, **kwargs):
         self.name=name
         self.field_type='mixing Tensor'
-        self.rep=[*kwargs['rep'], *kwargs['rep']]
+        self.rep=[*kwargs['rep']]
         self.explicit_name=explicitname(self.rep)
         self.properties={'rep': self.rep,'field_type':self.field_type,
-                          'explicit_name':self.name+self.explicit_name
+                         'explicit_name':self.name+self.explicit_name,
+                         'latex_name': kwargs["latex_name"], 
                           }
         self.indices1=Create_indices(self.properties['rep'])
         #indices of the conjugate field 
@@ -709,9 +710,9 @@ class Fermion():
         self.bar.explicit_name=self.bar.name+self.explicit_name
         self.conj=self.bar
         self.DelField = Del(self.field)
-        self.DelConj= Del(self.conj)
+        self.DelConj= Del(self.conj, idx=[1])
         self.CovDelField =CovDel(self.field)
-        self.CovDelConj=CovDel(self.conj)
+        self.CovDelConj=CovDel(self.conj, idx=[1])
         FieldDict.update({self.field.name: self.field,
                           self.conj.name : self.conj,
                           self.DelField.name: self.DelField,

@@ -256,9 +256,11 @@ class Lagrangian():
 
         #if gauge group is added--> covdel else--> del
         if self.GaugeFieldInstances:
-            ff_deriv = CovDel(ff, idx=[0]) #need to replace with the default field created
+            #ff_deriv = CovDel(ff, idx=[0]) #need to replace with the default field created
+            ff_deriv = FieldDict["CovDel"+ff.name] #need to replace with the default field created
         else:
-            ff_deriv = Del(ff, idx=[0]) #need to replace with the default field created
+            #ff_deriv = Del(ff, idx=[0]) #need to replace with the default field created
+            ff_deriv = FieldDict["Del"+ff.name] #need to replace with the default field created
 
         #add the fermion to the list of fermion
         if len(self.L_fermion) == 0:
@@ -273,7 +275,8 @@ class Lagrangian():
         self.gauge_flag = True
 
         #gamma matrix
-        gamma=Gamma()
+        gamma=Gamma.field
+        gamma.indices[1][0]=1
         #list of reps is added to the rep list
         for i in fermion.properties['rep']:
             if i.name not in self.rep:
