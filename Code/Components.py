@@ -647,9 +647,9 @@ class Scalar():
             self.dag.explicit_name=self.dag.name+self.explicit_name
         self.conj=self.dag
         self.DelField = Del(self.field)
-        self.DelConj= Del(self.conj)
+        self.DelConj= Del(self.conj, idx =[1])
         self.CovDelField =CovDel(self.field)
-        self.CovDelConj=CovDel(self.conj)
+        self.CovDelConj=CovDel(self.conj, idx=[1])
         FieldDict.update({self.field.name: self.field,
                           self.conj.name : self.conj,
                           self.DelField.name: self.DelField,

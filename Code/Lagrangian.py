@@ -9,7 +9,7 @@ It has a total of 35 class methods(23 internal, 12 user) ---- This information i
 #------------------------------------------------------------------------------- check if there any additional modules written here
 from sympy import Symbol,Rational,latex, sympify,srepr,simplify, I
 from sympy.abc import iota
-from components import*
+from Components import*
 from IPython.core.display import display, Math
 from copy import deepcopy
 from itertools import permutations, product
@@ -34,7 +34,13 @@ class Lagrangian():
         self.L_fermion = []
         #Stores the list of groups which are gauged
         self.GaugedGroups = []  
-
+        
+        #we need to create dictionaries which can store details of the fields present in a lagrangian
+        # rightnow I am going to create a single field dictioary for all types of fields . 
+        #Later we can modify it to separate dictioaries if neccessary
+        #the keyword of the argument will be the field name and value corresponds to the key is the field instance
+        self.FieldDict={}
+        
 
         #list of Vector Bosons
         self.L_VB=[]
@@ -63,6 +69,8 @@ class Lagrangian():
                         'fstr': {}}
         #list of groups of the Lagrangian
         self.groups = []
+        
+    # This function is completely unneccessary as I included it to avoid printing of certian methods.
     #---------------------------------------------------------------------------
     def blockPrinting(func):
         def func_wrapper(*args, **kwargs):
@@ -114,6 +122,8 @@ class Lagrangian():
             self.GaugeFieldInstances[group] = g
             self.fstr[group]=g.fstr
             self.gfield[group]=g.gauge_field
+            self.FieldDict.update({g.fstr.name: g.fstr, 
+                                   g.gauge_field.name: g.gauge_field}) #updates the field dict of the Lagrangian
 
         #only one gauge field per group is allowed--------------------------------->will change later
         if group in self.GaugedGroups:
@@ -179,11 +189,15 @@ class Lagrangian():
         
         #if gauge group is added-- take covarint derivative, o.w normal derivative
         if self.GaugeFieldInstances:
-            sf_deriv = CovDel(sf, idx=[0])
-            sf_deriv_conj = CovDel(sf_dag,idx=[1])
+            sf_deriv = FieldDict["CovDel"+sf.name]
+            sf_deriv_conj = FieldDict["CovDel"+sf_dag.name]
+            #sf_deriv = CovDel(sf, idx=[0])
+            #sf_deriv_conj = CovDel(sf_dag,idx=[1])
         else:
-            sf_deriv = Del(sf, idx=[0])
-            sf_deriv_conj = Del(sf_dag,idx=[1])
+            sf_deriv = FieldDict["Del"+ sf.name]
+            sf_deriv_conj = FieldDict["Del"+sf_dag.name]
+            #sf_deriv = Del(sf, idx=[0])
+            #sf_deriv_conj = Del(sf_dag,idx=[1])
             print(sf_deriv_conj)
 
         #add the scalarf field to the L_scalar list
@@ -194,6 +208,8 @@ class Lagrangian():
                 if sf == key:
                     raise Exception('The desired field is already present')
             self.L_scalar.append(sf)
+        self.FieldDict.update({sf.name: sf,
+                               sf_dag.name: sf_dag}) #updates the field_dict
 
         #put gauge flag to 0, which prevents the further addition of gaugegroups
         self.gauge_flag = True
@@ -236,12 +252,13 @@ class Lagrangian():
         ff = fermion.field
         #conjuagte field
         ff_bar=fermion.bar
+        self.FieldDict.update({ff.name: ff}) #updates the field dict
 
         #if gauge group is added--> covdel else--> del
         if self.GaugeFieldInstances:
-            ff_deriv = CovDel(ff, idx=[0])
+            ff_deriv = CovDel(ff, idx=[0]) #need to replace with the default field created
         else:
-            ff_deriv = Del(ff, idx=[0])
+            ff_deriv = Del(ff, idx=[0]) #need to replace with the default field created
 
         #add the fermion to the list of fermion
         if len(self.L_fermion) == 0:
@@ -275,7 +292,7 @@ class Lagrangian():
     #---------------------------------------------------------------------------
     def AddVBoson(self,vboson):
         del_vb=Del(vboson.field, idx=[0])
-        del_vb_dag=Del(vboson.dag, idx=[0])
+        del_vb_dag=Del(vboson.dag, idx=[0]) #replace with the default field 
         l= len(del_vb.get_indices[0])
         print(l)
         t1_up=[x for x in range(1, l+1)]
@@ -339,10 +356,36 @@ class Lagrangian():
         self.L_exp.append(term)
 
 
-
-    #---------------------------------------------------------------------------
-    #@blockPrinting
-    def AddTerm(self, coupling, *args, **kwargs):
+    #----------------------------------------------------------
+    def Contraction(self, coupling, list1, **kwargs):
+        print("Inside Contraction")
+        #coupling is the constant before each term
+        #list1 is the list of fields as a string format
+        #kwargs take any argument which is required in the making of add term function.
+        
+        #we will deal with test of each term later after finishing the term.
+        #we first deal with single field components.
+        field_list_name=[]
+        for x in list1:
+            print(x)
+            split1=x.split('(')
+            print(split1)
+            name = split1[0]
+            indices=split1[1]
+            indices_name_list = split1[1].split(',')
+            print(indices_name_list)
+            indices_name_list[-1]=indices_name_list[-1].replace(')', '')
+            print(indices_name_list)
+            new_indices=[]
+            
+            field_list_name.append(name)
+        print(field_list_name)
+            
+            
+            
+    #----------------------------------------------------------
+    def AddTerm2(self, coupling , *args, **kwargs):
+        print("Inside AddTerm2") 
         '''
         This method is used to add any kind of interaction terms to the 
         Lagrangian
@@ -356,6 +399,102 @@ class Lagrangian():
         pairs of fermions are called dirac pairs.
 
        
+        '''        
+        #count of the fermion and anti fermions should match --
+        #other wise not a valid term
+        fermion_count = {"bar":0, "not_bar":0}
+        index =[[], []]
+        list1=[]
+        dirac_pair=[]
+        
+        #Here, code make sure all the arguments passed are field
+        #count the fermions,
+        #update the dirac_pair list
+        #args contains the field list
+
+        for x in args:
+            #fermions are added as list
+            if isinstance(x, list):
+                list1.extend(x)
+                d_pair=[]
+                #check all the fields in  dirac pairs are fields
+                for y in x:
+                    if not (isinstance(y,FieldMul) or isinstance(y,Field)):
+                        raise Exception('only fields are allowed as input')
+                 
+                    d_pair.append(y.name)
+                    if isinstance(y,FieldMul):
+                        f=y.fields[1]
+                    else:
+                        f=y
+                    #count the fermion
+                    if f.field_type=='fermion':
+                        if '_bar' in f.name:
+                            fermion_count['bar']+=1
+                        else:
+                            fermion_count['not_bar']+=1
+                    #combine all the indices -----------for the geneartion of ba
+                    #balancing tensors, if neccessary
+                    indices=y.get_indices
+                    index[0].extend(indices[0])
+                    index[1].extend(indices[1])
+                dirac_pair.append(d_pair)
+            #this part is for all field other than dirac pairs.
+            elif isinstance(x, FieldMul) or isinstance(x, Field):
+                if x.field_type=='fermion':
+                    raise Exception('fermions should be added in pairs as a list')
+                list1.append(x)
+                indices=x.get_indices
+                index[0].extend(indices[0])
+                index[1].extend(indices[1])
+            else:
+                raise Exception('Input error: only fields are allowed') 
+        
+        #check the count of fermion and antifermion
+        #if not equal ------pass exception
+        if fermion_count['bar']!=fermion_count['not_bar']:
+            raise Exception("Not a valid term: Number of fermions \
+                              and anti-fermions don't match")
+
+        #new term will be stored to this 
+        term = {'coupling': Symbol(coupling, Real=True), 'delta': [],
+                'fields':[],'dirac_pair':dirac_pair}
+        #first mode where contraction patten is given
+        if 'contraction_pattern' in kwargs.keys():
+            dict1=kwargs['contraction_pattern']
+            print(dict1)
+            indices_list={}
+            #for each field create a dict with index_type as key
+            for x in range(len(list1)):
+                if isinstance(list1[x] , FieldMul):
+                    pass
+                else:
+                    name=list1[x].name
+                    index_types=[Rep.rep_dict[y.index_type] for y in list1[x].get_indices[0]]
+                    print(index_types)
+                    index_names=[]
+                    for y in range(len(index_types)):
+                        print(index_types[y])
+                        print(dict1[index_types[y]])
+                        index_name= index_types[y] + str(dict1[index_types[str(y)]])
+                        
+                        index_names.append(index_name)
+                     
+                    print(index_names)
+    #-----------------------------------------------------------
+    #@blockPrinting
+    def AddTerm(self, coupling, *args, **kwargs):
+        '''
+        This method is used to add any kind of interaction terms to the 
+        Lagrangian
+        Works in 2 modes.
+        In the first mode, user can give the list of fields along with its 
+        contraction pattern(lists inside list format)
+
+        In the second mode, user provide only the list of fields. The code 
+        creates a contraction by the creation of a balancing tensor.
+        User should provide the fermions as bosonic pairs. In the code bosonic
+        pairs of fermions are called dirac pairs.
         '''        
         #count of the fermion and anti fermions should match--otherwise
         #not a valid term
@@ -428,11 +567,15 @@ class Lagrangian():
                     except KeyError: 
                         indices_list.update({indices[y].index_type:\
                                                         [abs(list2[x][y])]})
+            print("at1indices_list", indices_list)            
             for key in indices_list.keys():
                 indices_list[key]=list(set(indices_list[key]))
+            print(indices_list)
             if len(list1)!=len(list2):#-------------------------------------------->move this above 
                 raise Exception('pattern and fields do not match') 
+            print("at2passed the test")
             for x in range(len(list1)):
+                print(x)
                 if isinstance(list1[x], FieldMul):
                     y=list1[x].fields
                     new_fields=[]
@@ -440,20 +583,25 @@ class Lagrangian():
                     y=[list1[x]]
                     new_fields=[]
                 count1=0
-                for j in range(len(y)):
+                print("at3",count1)
+                for j in range(len(y)):                    
                     field=y[j]
                     i1=field.get_indices[0] 
                     i2=field.get_indices[1]
+                    print("at4",field, i1, i2)
                     i3=[]
                     i4=[]
                     count2=len(i1)
+                    print("at5",count2)
                     pattern=list2[x][count1:(count1 +count2)]
-                
+                    print(count2, pattern)
                     for k in range(len(i1)):
+                        print("at6",k)
                         index_rep=Rep.rep_dict[i1[k].index_type]
                         dummy_list=indices_list[i1[k].index_type]
-                        
+                        print(index_rep, dummy_list)
                         number=dummy_list.index(abs(pattern[k]))
+                        print(number)
                         if pattern[k]==0:
                             #continue
                             i3.append(i1[k])
