@@ -776,7 +776,8 @@ class VBoson():
             self.dag.latex_name=self.field.latex_name+'^{\dagger}'
             self.dag.explicit_name=self.dag.name+self.explicit_name
         self.conj=self.dag
-        FieldDict.update({self.field.name: self.field})
+        FieldDict.update({self.field.name: self.field,
+                          self.conj.name: self.conj})
         
 
     
@@ -916,16 +917,6 @@ def CovDel(field,idx=[0]):
     return (CovDel_field)
 
 
-#8888888888888888888888888888888888888888888888888888888888888888888888888888888
-def Gamma(idx=[1]):
-    '''
-    #Represents the gamma matrix
-    '''
-    properties={'rep':[L],'field_type':'constant','latex_name':'\gamma',
-                'explicit_name':None}
-    index=Create_indices(properties['rep'],idx)
-    gamma=Field('gamma', index, **properties)
-    return (gamma)
 
 
     
