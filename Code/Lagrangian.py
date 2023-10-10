@@ -377,6 +377,7 @@ class Lagrangian():
         return(fermion_count, d_pair)
     #---------------------------------------------
     def convert_str_to_fields(self, list1):
+        #new function to convert fields inputed as strings into their corresponding fields
         field_list = []
         #first deal with single component fields
         for x in list1:
