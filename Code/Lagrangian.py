@@ -1059,6 +1059,7 @@ class Lagrangian():
         #output prints only in jupyter if the length terms is less than 300
         if len(dict1)<=300:
            display(Math(final))
+           os.remove(file_name)
     #----------------------------------------------------------------------------      
     def up_down_index(self,field):  #can be taken out accessed from latex_print----------------------
         indices=field.get_indices 
