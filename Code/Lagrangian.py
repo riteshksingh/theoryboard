@@ -18,7 +18,7 @@ from re import findall
 from signPermutation import *
 from numpy import prod,array
 from Utilities import *
-
+from collections import Counter
 import datetime
 #--------------------------------------------------------------------------------
 ################################################################################
@@ -293,7 +293,7 @@ class Lagrangian():
 
 
     #---------------------------------------------------------------------------
-    def AddVBoson(self,vboson):
+    def AddVBoson(self,vboson): #need to change this part later
         del_vb=Del(vboson.field, idx=[0])
         del_vb_dag=Del(vboson.dag, idx=[0]) #replace with the default field 
         l= len(del_vb.get_indices[0])
@@ -357,133 +357,145 @@ class Lagrangian():
                   'fields':[m_field_bar,m_field],
                   'dirac_pair':[[m_field_bar.name,m_field.name]] }
         self.L_exp.append(term)
+    
 
-
-    #----------------------------------------------------------
-    def Contraction(self, coupling, list1, **kwargs):
-        print("Inside Contraction")
-        #coupling is the constant before each term
-        #list1 is the list of fields as a string format
-        #kwargs take any argument which is required in the making of add term function.
-        
-        #we will deal with test of each term later after finishing the term.
-        #we first deal with single field components.
-        field_list_name=[]
+    #-----------------------------------------------------------
+    def count_fermion_pairs(self, list1):
+        d_pair=[]
+        fermion_count = {"bar":0, "not_bar": 0}
         for x in list1:
-            print(x)
-            split1=x.split('(')
-            print(split1)
-            name = split1[0]
-            indices=split1[1]
-            indices_name_list = split1[1].split(',')
-            print(indices_name_list)
-            indices_name_list[-1]=indices_name_list[-1].replace(')', '')
-            print(indices_name_list)
-            new_indices=[]
-            
-            field_list_name.append(name)
-        print(field_list_name)
-            
-            
-            
-    #----------------------------------------------------------
-    def AddTerm2(self, coupling , *args, **kwargs):
-        print("Inside AddTerm2") 
-        '''
-        This method is used to add any kind of interaction terms to the 
-        Lagrangian
-        Works in 2 modes.
-        In the first mode, user can give the list of fields along with its 
-        contraction pattern(lists inside list format)
-
-        In the second mode, user provide only the list of fields. The code 
-        creates a contraction by the creation of a balancing tensor.
-        User should provide the fermions as bosonic pairs. In the code bosonic
-        pairs of fermions are called dirac pairs.
-
-       
-        '''        
-        #count of the fermion and anti fermions should match --
-        #other wise not a valid term
-        fermion_count = {"bar":0, "not_bar":0}
-        index =[[], []]
-        list1=[]
-        dirac_pair=[]
-        
-        #Here, code make sure all the arguments passed are field
-        #count the fermions,
-        #update the dirac_pair list
-        #args contains the field list
-
-        for x in args:
-            #fermions are added as list
-            if isinstance(x, list):
-                list1.extend(x)
-                d_pair=[]
-                #check all the fields in  dirac pairs are fields
-                for y in x:
-                    if not (isinstance(y,FieldMul) or isinstance(y,Field)):
-                        raise Exception('only fields are allowed as input')
-                 
-                    d_pair.append(y.name)
-                    if isinstance(y,FieldMul):
-                        f=y.fields[1]
-                    else:
-                        f=y
-                    #count the fermion
-                    if f.field_type=='fermion':
-                        if '_bar' in f.name:
-                            fermion_count['bar']+=1
-                        else:
-                            fermion_count['not_bar']+=1
-                    #combine all the indices -----------for the geneartion of ba
-                    #balancing tensors, if neccessary
-                    indices=y.get_indices
-                    index[0].extend(indices[0])
-                    index[1].extend(indices[1])
-                dirac_pair.append(d_pair)
-            #this part is for all field other than dirac pairs.
-            elif isinstance(x, FieldMul) or isinstance(x, Field):
-                if x.field_type=='fermion':
-                    raise Exception('fermions should be added in pairs as a list')
-                list1.append(x)
-                indices=x.get_indices
-                index[0].extend(indices[0])
-                index[1].extend(indices[1])
+            if isinstance(x, FieldMul):
+                f = x.fields[1]
             else:
-                raise Exception('Input error: only fields are allowed') 
-        
-        #check the count of fermion and antifermion
-        #if not equal ------pass exception
-        if fermion_count['bar']!=fermion_count['not_bar']:
-            raise Exception("Not a valid term: Number of fermions \
-                              and anti-fermions don't match")
-
-        #new term will be stored to this 
-        term = {'coupling': Symbol(coupling, Real=True), 'delta': [],
-                'fields':[],'dirac_pair':dirac_pair}
-        #first mode where contraction patten is given
-        if 'contraction_pattern' in kwargs.keys():
-            dict1=kwargs['contraction_pattern']
-            print(dict1)
-            indices_list={}
-            #for each field create a dict with index_type as key
-            for x in range(len(list1)):
-                if isinstance(list1[x] , FieldMul):
-                    pass
+                f = x
+            if f.field_type == 'fermion' :
+                if '_bar' in f.name:
+                    fermion_count['bar'] += 1
                 else:
-                    name=list1[x].name
-                    index_types=[Rep.rep_dict[y.index_type] for y in list1[x].get_indices[0]]
-                    print(index_types)
-                    index_names=[]
-                    for y in range(len(index_types)):
-                        print(index_types[y])
-                        print(dict1[index_types[y]])
-                        index_name= index_types[y] + str(dict1[index_types[str(y)]])
-                        
-                        index_names.append(index_name)
-                     
-                    print(index_names)
+                    fermion_count['not_bar'] += 1
+                d_pair.append(x)
+        return(fermion_count, d_pair)
+    #---------------------------------------------
+    def convert_str_to_fields(self, list1):
+        field_list = []
+        #first deal with single component fields
+        for x in list1:
+            count=Counter(x)
+            print(count)
+            bracket_number=count['('] 
+            print(bracket_number)
+            if bracket_number == 2:
+                field1, field2, extra = x.split(')')
+                f1_name, f1_indices = field1.split('(')
+                f2_name, f2_indices = field2.split('(')
+                print(field1, field2)
+                print("f1",f1_name, f1_indices)
+                print("f2",f2_name, f2_indices)
+                #identify the field from FieldDict
+                fields= FieldDict[f1_name+f2_name].fields
+                print(fields)
+                if ',' in f1_indices:
+                    print("if")
+                    f1_splitted_indices = f1_indices.split(',')
+                else:
+                    print("else")
+                    f1_splitted_indices = [f1_indices]
+                if ',' in f2_indices:
+                    f2_splitted_indices = f2_indices.split(',')
+                else:
+                    f2_splitted_indices = [f2_indices]
+           
+                print("ss",f1_splitted_indices, f2_splitted_indices)
+                f1_indices_sym = []
+                f1_indices_sign = []
+                for y in range(len(f1_splitted_indices)):
+                    print(y)
+                    if '-' in f1_splitted_indices[y]:
+                        z1 = f1_splitted_indices[y].replace('-', '')
+                        f1_indices_sign.append(-1)
+                    else:
+                        z1 = f1_splitted_indices[y]
+                        f1_indices_sign.append(1)
+                    index1 = Index(z1, \
+                             Rep.rep_dict[fields[0].get_indices[0][y].index_type])
+                    f1_indices_sym.append(index1)
+                f1_new_indices = [f1_indices_sym, f1_indices_sign]
+                f1_new = Field(fields[0].name, f1_new_indices)
+
+                f2_indices_sym = []
+                f2_indices_sign = []
+                for y in range(len(f2_splitted_indices)):
+                    if '-' in f2_splitted_indices[y]:
+                        z2 = f2_splitted_indices[y].replace('-', '')
+                        f2_indices_sign.append(-1)
+                    else:
+                        z2 = f2_splitted_indices[y]
+                        f2_indices_sign.append(1)
+                    index2 = Index(z2, \
+                             Rep.rep_dict[fields[1].get_indices[0][y].index_type])
+                    f2_indices_sym.append(index2)
+                f2_new_indices = [f2_indices_sym, f2_indices_sign]
+                f2_new = Field(fields[1].name, f2_new_indices)
+                new_field = FieldMul(f1_new, f2_new)
+                print(new_field)
+            else: 
+                name, indices = x.split('(')
+                #Identify the field from the FieldDict
+                field = FieldDict[name]
+                field_indices=field.get_indices[0]
+                #separate indices and remove bracket
+                splited_indices = indices.split(',')
+                splited_indices = [s.replace(')', '') for s in\
+                               splited_indices]
+                #create new indices
+                #need to include certain checks which can be added
+                # later
+                indices_sym = []
+                indices_sign = []
+                for y in range(len(splited_indices)):
+                    if '-' in splited_indices[y]:
+                        z = splited_indices[y].replace('-','')
+                        indices_sign.append(-1)
+                    else:
+                        z = splited_indices[y]
+                        indices_sign.append(1)
+                    index= Index(z, \
+                        Rep.rep_dict[field_indices[y].index_type])
+                    indices_sym.append(index)
+                #need to remove the extra spaces in strings
+                new_indices=[indices_sym, indices_sign]
+                #need to add other properties to the field
+                new_field = Field(field.name, new_indices)
+            field_list.append(new_field)
+        return(field_list)      
+                
+    #---------------------------------------------            
+    def add_term_manage(self, coupling, list1):
+        #This is the method in which the code generates constant
+        #tensors to create contraction pattern.
+        #In this method the fields should not be given as string
+        term = {'coupling' : Symbol(coupling, Real = True),
+                'delta': [],
+                'fields': [],
+                'dirac_pair': []
+               }
+    #-----------------------------------------------------      
+    def add_term(self, coupling, list1, manage= True):
+        #this the method that adds interaction terms to the 
+        #Lagragian. It should be done in 2 ways. One the code  
+        # will automatically generates the contraction pattern 
+        #by creating Constant tensor. Second by user providing
+        # the contraction along with the field in  the form of
+        # strings.
+        #
+              
+        if manage == False :
+            #Since the fields are given as strings the first
+            #step is to convert them in to fields 
+            self.convert_str_to_fields(self, list1)
+            self.contraction(coupling, list1)
+        else:
+            add_term_manage(coupling, list1)
     #-----------------------------------------------------------
     #@blockPrinting
     def AddTerm(self, coupling, *args, **kwargs):
