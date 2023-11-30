@@ -418,24 +418,29 @@ class Lagrangian():
                         z1 = f1_splitted_indices[y]
                         f1_indices_sign.append(1)
                     index1 = Index(z1, \
-                             Rep.rep_dict[fields[0].get_indices[0][y].index_type])
+                             Rep.rep_dict[fields[0]\
+                             .get_indices[0][y].index_type])
                     f1_indices_sym.append(index1)
-                f1_new_indices = [f1_indices_sym, f1_indices_sign]
+                f1_new_indices = [f1_indices_sym,\
+                                  f1_indices_sign]
                 f1_new = Field(fields[0].name, f1_new_indices)
 
                 f2_indices_sym = []
                 f2_indices_sign = []
                 for y in range(len(f2_splitted_indices)):
                     if '-' in f2_splitted_indices[y]:
-                        z2 = f2_splitted_indices[y].replace('-', '')
+                        z2 = f2_splitted_indices[y]\
+                             .replace('-', '')
                         f2_indices_sign.append(-1)
                     else:
                         z2 = f2_splitted_indices[y]
                         f2_indices_sign.append(1)
                     index2 = Index(z2, \
-                             Rep.rep_dict[fields[1].get_indices[0][y].index_type])
+                             Rep.rep_dict[fields[1]\
+                             .get_indices[0][y].index_type])
                     f2_indices_sym.append(index2)
-                f2_new_indices = [f2_indices_sym, f2_indices_sign]
+                f2_new_indices = [f2_indices_sym,\
+                                  f2_indices_sign]
                 f2_new = Field(fields[1].name, f2_new_indices)
                 new_field = FieldMul(f1_new, f2_new)
                 print(new_field)
@@ -470,6 +475,14 @@ class Lagrangian():
             field_list.append(new_field)
         return(field_list)      
                 
+    #----------------------------------------------
+    def contraction(self, coupling, field_list):
+        term = {'coupling': Symbol(coupling, Real = True),
+                'delta' : [],
+                'fields': [*field_list],
+                'dirac_pair': []
+               }
+        return(term)
     #---------------------------------------------            
     def add_term_manage(self, coupling, list1):
         #This is the method in which the code generates constant
@@ -480,8 +493,138 @@ class Lagrangian():
                 'fields': [],
                 'dirac_pair': []
                }
+        fermion_count = {'bar': 0, 
+                         'not_bar': 0
+                        }
+        index = [[],[]]
+        dirac_pair = []
+        for x in list1:
+            if isinstance(x, Field) or isinstance(x, FieldMul):
+                indices = x.get_indices
+                index[0].extend(indices[0])
+                index[1].extend(indices[1])
+            else:
+                raise Exception ("only fields are allowed")
+        print(index)  
+        new_index = [[], []]
+        rep_list = []
+        for i in range(len(index[0])):
+            if Rep.rep_dict[index[0][i].index_type].singlet \
+            == False:
+                new_index[0].append(index[0][i])
+                new_index[1].append(index[0][i])
+                rep_list.append(index[0][i].index_type)
+        group_list = [Rep.rep_dict[x].group.name \
+                      for x in rep_list]
+        index_dict = {}
+        for i in range(len(group_list)):
+            try: 
+                index_dict[group_list[i]][rep_list[i]] += 1
+            except NameError:
+                index_dict = {group_list[i]: {rep_list[i]: 1}}
+            except KeyError:
+                try:
+                    isinstance(index_dict[group_list[i]], dict)
+                except KeyError:
+                    index_dict.update({group_list[i]: \
+                                       {rep_list[i]: 1}\
+                                      })
+                else: 
+                    index_dict[group_list[i]].update(\
+                              {rep_list[i]:1})
+        if index_dict == {}:
+            term['fields'] = [*list1]
+            return (term)
+        else:
+            temp = {}
+            for z, y in index_dict.items():
+                one_g_rep = []
+                bal_indices = [[],[]]
+                for i, j in y.items():
+                    one_rep = [[Index(Rep.rep_dict[str(i)].\
+                                index_name + str (k+1), \
+                                Rep.rep_dict[str(i)]) \
+                                for k in range(j)], \
+                                [1 for k in range(j)]]
+                    one_g_rep.extend([i for k in range(j)])
+                    temp.update({i: one_rep})
+                if len(one_g_rep) == 1:
+                    raise Exception ( 'only one index \
+                                      for rep present')
+                elif len(one_g_rep) == 2:
+                    if one_rep[0][0].index_type != \
+                    one_rep[0][1].index_type:
+                        raise Exception ('Entered term :null')
+                    delta = self.create_delta(\
+                            [[one_rep[0][0]],\
+                             [one_rep[1][0]]],\
+                            [[one_rep[0][1]],\
+                             [one_rep[1][1]]])
+                    term['delta'].extend(delta)
+                else:
+                    e_name = '_x'
+                    for x in one_g_rep:
+                        e_name += '_' + x
+                    rep_list = [Rep.rep_dict[ str(i)] for i in \
+                                             one_g_rep ]
+                    if rep_list != []:
+                        indices= Create_indices(rep_list, \
+                                               idx=[1])
+                        if coupling[0] == '-':
+                            c= coupling[1:]
+                        else:
+                            c = coupling
+                        f = Field(c + '_'+ str(z),
+                                  indices,
+                                  field_type = 'constant',
+                                  latex_name = '(C_{' +  \
+                                                str(z) + '})',
+                                  explicit_name = c + str(z) + \
+                                                  e_name,
+                                  symmetry = 0,
+                                  numerical_values = None)
+                        
+                    term['fields'].append(f)
+                    self.tensor_names.append(f)
+            for x in list1:
+                if isinstance(x, FieldMul):
+                    y=x.fields
+                    new_field=[]
+                else:
+                    y=[x]
+                    new_field=[]
+                for j in range(len(y)):
+                    ar = [[],[]]
+                    idcs = y[j].get_indices
+
+                    for i in range(len(idcs[0])):
+                        if idcs[0][i].index_type in temp.keys():
+                            ar[0].append(temp[idcs[0][i].\
+                                       index_type][0].pop())
+                            ar[1].append(-1)
+                        elif idcs[1][i]==-1:
+                            ar[0].append(idcs[0][i])
+                            ar[1].append(-1)
+                        else:
+                            ar[0].append(idcs[0][i])
+                            ar[1].append(-idcs[1][i]) 
+
+  
+                    new_field.append(Field(y[j].name, ar, \
+                    field_type=y[j].field_type,
+                    latex_name=y[j].latex_name,
+                    explicit_name=y[j].explicit_name,
+                    symmetry=y[j].symmetry, 
+                    numerical_values=y[j].numerical_values))                
+                if len(y) == 1:
+                    term['fields'].append(new_field[0])
+                else:
+                    term['fields'].append(FieldMul(*new_field))
+        if term['delta']:
+            term= self.eliminate_delta(term)
+        return(term)
     #-----------------------------------------------------      
-    def add_term(self, coupling, list1, manage= True):
+    def AddTerm(self, coupling, list1, manage= True):
         #this the method that adds interaction terms to the 
         #Lagragian. It should be done in 2 ways. One the code  
         # will automatically generates the contraction pattern 
@@ -493,302 +636,16 @@ class Lagrangian():
         if manage == False :
             #Since the fields are given as strings the first
             #step is to convert them in to fields 
-            self.convert_str_to_fields(self, list1)
-            self.contraction(coupling, list1)
+            field_list=self.convert_str_to_fields( list1)
+            #check the number of fermion pairs
+            #check the contraction is legit
+            term = self.contraction(coupling, field_list)
         else:
-            add_term_manage(coupling, list1)
-    #-----------------------------------------------------------
-    #@blockPrinting
-    def AddTerm(self, coupling, *args, **kwargs):
-        '''
-        This method is used to add any kind of interaction terms to the 
-        Lagrangian
-        Works in 2 modes.
-        In the first mode, user can give the list of fields along with its 
-        contraction pattern(lists inside list format)
+            term = self.add_term_manage(coupling, list1)
+        return(term)
 
-        In the second mode, user provide only the list of fields. The code 
-        creates a contraction by the creation of a balancing tensor.
-        User should provide the fermions as bosonic pairs. In the code bosonic
-        pairs of fermions are called dirac pairs.
-        '''        
-        #count of the fermion and anti fermions should match--otherwise
-        #not a valid term
-        fermion_count={'bar':0,'not_bar':0}
-        index=[[],[]]
-        list1=[]
-        dirac_pair=[]
-
-        #Here, code make sure all the arguments passed are fields, count the 
-        #fermions, update the dirac_pair list
-        for x in args:
-            #fermions are added as list
-            if isinstance(x, list):
-                list1.extend(x)
-                d_pair=[]
-                #check all the fields in  dirac pairs are fields
-                for y in x:
-                    if not (isinstance(y,FieldMul) or isinstance(y,Field)):
-                        raise Exception('only fields are allowed as input')
-                 
-                    d_pair.append(y.name)
-                    if isinstance(y,FieldMul):
-                        f=y.fields[1]
-                    else:
-                        f=y
-                    #count the fermion
-                    if f.field_type=='fermion':
-                        if '_bar' in f.name:
-                            fermion_count['bar']+=1
-                        else:
-                            fermion_count['not_bar']+=1
-                    #combine all the indices -----------for the geneartion of ba
-                    #balancing tensors, if neccessary
-                    indices=y.get_indices
-                    index[0].extend(indices[0])
-                    index[1].extend(indices[1])
-                dirac_pair.append(d_pair)
-            #this part is for all field other than dirac pairs.
-            elif isinstance(x, FieldMul) or isinstance(x, Field):
-                if x.field_type=='fermion':
-                    raise Exception('fermions should be added in pairs as a list')
-                list1.append(x)
-                indices=x.get_indices
-                index[0].extend(indices[0])
-                index[1].extend(indices[1])
-            else:
-                raise Exception('Input error: only fields are allowed') 
-        
-        #check the count of fermion and antifermion
-        #if not equal ------pass exception
-        if fermion_count['bar']!=fermion_count['not_bar']:
-            raise Exception("Not a valid term: Number of fermions \
-                              and anti-fermions don't match")
-
-        #new term will be stored to this 
-        term = {'coupling': Symbol(coupling, Real=True), 'delta': [],
-                'fields':[],'dirac_pair':dirac_pair}
-        #first mode where contraction patten is given
-        if 'contraction_pattern' in kwargs.keys():
-            list2=kwargs['contraction_pattern']
-            indices_list={}
-            #for each field create a dict with index_type as key and its 
-            #contraction as values {'rep1name':[1, 3, 5],...} 
-            for x in range(len(list1)):
-                indices=list1[x].get_indices[0]
-                for y in range(len(indices)):
-                    try:                        
-                        indices_list[indices[y].index_type].\
-                                                 append(abs(list2[x][y]))
-                    except KeyError: 
-                        indices_list.update({indices[y].index_type:\
-                                                        [abs(list2[x][y])]})
-            print("at1indices_list", indices_list)            
-            for key in indices_list.keys():
-                indices_list[key]=list(set(indices_list[key]))
-            print(indices_list)
-            if len(list1)!=len(list2):#-------------------------------------------->move this above 
-                raise Exception('pattern and fields do not match') 
-            print("at2passed the test")
-            for x in range(len(list1)):
-                print(x)
-                if isinstance(list1[x], FieldMul):
-                    y=list1[x].fields
-                    new_fields=[]
-                else:
-                    y=[list1[x]]
-                    new_fields=[]
-                count1=0
-                print("at3",count1)
-                for j in range(len(y)):                    
-                    field=y[j]
-                    i1=field.get_indices[0] 
-                    i2=field.get_indices[1]
-                    print("at4",field, i1, i2)
-                    i3=[]
-                    i4=[]
-                    count2=len(i1)
-                    print("at5",count2)
-                    pattern=list2[x][count1:(count1 +count2)]
-                    print(count2, pattern)
-                    for k in range(len(i1)):
-                        print("at6",k)
-                        index_rep=Rep.rep_dict[i1[k].index_type]
-                        dummy_list=indices_list[i1[k].index_type]
-                        print(index_rep, dummy_list)
-                        number=dummy_list.index(abs(pattern[k]))
-                        print(number)
-                        if pattern[k]==0:
-                            #continue
-                            i3.append(i1[k])
-                            i4.append(-1)
-                            continue
-                        if str(pattern[k])[0]=='-':
-
-                            if str(i1[k])!=index_rep.index_name+str(pattern[k])[1:]:
-                                index_name=index_rep.index_name+str(number+1)
-                                index=Index(index_name, index_rep)
-                                i3.append(index)
-                            else:
-                                i3.append(i1[k])
-                            i4.append(-1)
-                        else:
-                            if str(i1[k])!=index_rep.index_name + str(pattern[k]):
-                                index_name=index_rep.index_name + str(number+1)
-                                index=Index(index_name, index_rep)
-                                i3.append(index)
-                            else:
-                                i3.append(i1[k])
-                            i4.append(1)
-                    new_field=Field(y[j].name, (i3,i4),
-                           field_type=y[j].field_type,
-                           latex_name=y[j].latex_name,
-                           explicit_name=y[j].explicit_name,
-                           symmetry=y[j].symmetry,
-                           numerical_values=y[j].numerical_values)
-                    new_fields.append(new_field)
-                    count1=count2
-                if len(y) == 1:
-                    term['fields'].append(new_fields[0])
-                else:
-                    term['fields'].append(FieldMul(*new_fields))
-                
-            if 'out' in kwargs.keys():
-                return(term)
-            else:
-                self.L_exp.append(term) 
-
-
-        else:
-            new_index=[[],[]]
-            rep_list=[] 
-            for i in range(len(index[0])):
-                if Rep.rep_dict[index[0][i].index_type].singlet==False:
-                    new_index[0].append(index[0][i])
-                    new_index[1].append(index[1][i])
-                    rep_list.append(index[0][i].index_type)
-            group_list = [Rep.rep_dict[x].group.name for x in rep_list]
-            index_dict={}
-            # write in to a dictionary format
-            for i in range(len(group_list)):
-                try:
-                    index_dict[group_list[i]][rep_list[i]] += 1
-                except NameError:
-                    index_dict = {group_list[i] : {rep_list[i]: 1}}
-                except KeyError:
-                    try:
-                        isinstance(index_dict[group_list[i]], dict)
-                    except KeyError:
-                        index_dict.update({group_list[i]: {rep_list[i]: 1}})
-                    else:
-                        index_dict[group_list[i]].update({rep_list[i]: 1})
-
-            #only singlet indices case
-            if index_dict=={}:
-                term['fields']=[*args]
-                
-                if 'out' in kwargs.keys():
-                    return(term)
-                else:
-                    self.L_exp.append(term)
-           
-            #when non singlet indices present.
-            else:
-                temp={}
-                for z,y in index_dict.items():
-                    one_g_rep=[]
-                    bal_indices=[[],[]]
-                    for i, j in y.items():
-                        one_rep = [[Index(Rep.rep_dict[str(i)].index_name\
-                                     +str(k+1),Rep.rep_dict[str(i)])  
-                                               for k in range(j)],\
-                                               [1 for k in range(j)]]
-                        one_g_rep.extend([i for k in range(j)])
-                        temp.update({i:one_rep})
-                    if len(one_g_rep)==1:
-                        raise Exception('only one index for one rep')
-                    elif len(one_g_rep)==2:
-                        if one_rep[0][0].index_type != one_rep[0][1].index_type:
-                            raise Exception ("Entered term is Null")
-                        delta = self.create_delta([[one_rep[0][0]],\
-                                                [one_rep[1][0]]],\
-                                                [[one_rep[0][1]],\
-                                                 [one_rep[1][1]]])
-
-                        term['delta'].extend(delta)
-                    else:
-                        e_name='_x'
-                        for x in one_g_rep:
-                            e_name+='_'+x
-                                   
-                        rep_list = [Rep.rep_dict[str(i)] for i in one_g_rep]
-                    
-                        if rep_list!=[]:
-                            indices=Create_indices(rep_list,idx=[1])
-                            if coupling[0] == '-':
-                                f=Field(coupling[1:] + '_'+str(z),indices,
-                                    field_type='constant', 
-                                    latex_name='(C'+ '_{'+str(z)+'})',
-                                    explicit_name=coupling[1:] + str(z)+e_name,
-                                    symmetry=0, 
-                                    numerical_values=None)
-                           
-                            else:
-                                f=Field(coupling + '_'+str(z),indices,
-                                    field_type='constant', 
-                                    latex_name='(C'+ '_{'+str(z)+'})',
-                                    explicit_name=coupling[1:] + str(z)+e_name,
-                                    symmetry=0,
-                                    numerical_values=None) 
-                        term['fields'].append(f) 
-                        self.tensor_names.append(f)
-                #indices of fields will change to covariant.
-                for x in list1:
-                    if isinstance(x, FieldMul):
-                        y=x.fields
-                        new_field=[]
-                    else:
-                        y=[x]
-                        new_field=[]
-                    for j in range(len(y)):
-                        ar = [[],[]]
-                        idcs = y[j].get_indices
-
-                        for i in range(len(idcs[0])):
-                            if idcs[0][i].index_type in temp.keys():
-                                ar[0].append(temp[idcs[0][i].index_type][0].pop())
-                                ar[1].append(-1)
-                            elif idcs[1][i]==-1:
-                                ar[0].append(idcs[0][i])
-                                ar[1].append(-1)
-                            else:
-                                ar[0].append(idcs[0][i])
-                                ar[1].append(-idcs[1][i]) 
-
-  
-                        new_field.append(Field(y[j].name, ar, \
-                                    field_type=y[j].field_type,
-                                    latex_name=y[j].latex_name,
-                                    explicit_name=y[j].explicit_name,
-                                    symmetry=y[j].symmetry, 
-                                    numerical_values=y[j].numerical_values))                
-
-                    if len(y) == 1:
-                        term['fields'].append(new_field[0])
-                    else:
-                        term['fields'].append(FieldMul(*new_field))
-                if term['delta']:
-                     expr = self.eliminate_delta(term)
-                     if 'out' in kwargs.keys():
-                        return(expr)
-                     self.L_exp.append(expr)
-                    
-                else:
-                    if 'out' in kwargs.keys():
-                        return(term)
-                    self.L_exp.append(term)
                   
-    #-------------------------------------------------------------------------------
+    #-----------------------------------------------------------
     def create_delta(self, nlist1, nlist2):      #no connection with Lagrangian 
         '''
         Create kronecker deltas with set of indices passed.
