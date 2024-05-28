@@ -423,7 +423,11 @@ class Lagrangian():
                     f1_indices_sym.append(index1)
                 f1_new_indices = [f1_indices_sym,\
                                   f1_indices_sign]
-                f1_new = Field(fields[0].name, f1_new_indices)
+                f1_new = Field(fields[0].name, f1_new_indices,
+                    field_type=fields[0].field_type,
+                    latex_name=fields[0].latex_name,
+                    explicit_name=fields[0].explicit_name,
+                    symmetry=fields[0].symmetry, )
 
                 f2_indices_sym = []
                 f2_indices_sign = []
@@ -441,7 +445,11 @@ class Lagrangian():
                     f2_indices_sym.append(index2)
                 f2_new_indices = [f2_indices_sym,\
                                   f2_indices_sign]
-                f2_new = Field(fields[1].name, f2_new_indices)
+                f2_new = Field(fields[1].name, f2_new_indices,
+                    field_type=fields[1].field_type,
+                    latex_name=fields[1].latex_name,
+                    explicit_name=fields[1].explicit_name,
+                    symmetry=fields[1].symmetry, )
                 new_field = FieldMul(f1_new, f2_new)
                 print(new_field)
             else: 
@@ -471,7 +479,11 @@ class Lagrangian():
                 #need to remove the extra spaces in strings
                 new_indices=[indices_sym, indices_sign]
                 #need to add other properties to the field
-                new_field = Field(field.name, new_indices)
+                new_field = Field(field.name, new_indices,
+                    field_type=field.field_type,
+                    latex_name=field.latex_name,
+                    explicit_name=field.explicit_name,
+                    symmetry=field.symmetry, )
             field_list.append(new_field)
         return(field_list)      
                 
@@ -642,7 +654,8 @@ class Lagrangian():
             term = self.contraction(coupling, field_list)
         else:
             term = self.add_term_manage(coupling, list1)
-        return(term)
+        #return(term)
+        self.L_exp.append(term)
 
                   
     #-----------------------------------------------------------
@@ -1339,13 +1352,16 @@ class Lagrangian():
         field_list=[]
         if keyword=='fstr':
              for key,values in self.mapping['fstr'].items():
+                print(key)
+                print(values)
+                
                 if field.name == values['fields'][0].name:
                     a = None
                     idx_list = field.get_free_indices
                     l_index=[idx_list[0][-2:],idx_list[1][-2:]]
                     if len(idx_list[0]) == 3:
                         a = [[idx_list[0][0]],[idx_list[1][0]]]
-                        f=key.f(idx=[1])
+                        f=key.f
                         f.symmetry=-1
                         f.indices[1][0]=idx_list[1][0]
                     ori_field=values['fields'][1]
@@ -2061,7 +2077,6 @@ class Lagrangian():
             raise Exception ("Only Scalars allowed!")
         tb_replaced = replace_field.field
         tb_replaced_dag = replace_field.dag
-        print(tb_replaced, tb_replaced_dag)
                
         #__________exlicit expansion________________________________
         theory = [Rep.rep_dict[tb_replaced.get_indices[0][k].index_type]
@@ -2070,8 +2085,6 @@ class Lagrangian():
         temp_explicit = [theory[i].group for i in \
                          range(len(temp)) if temp[i] == 1]  
         Lag=self.MakeExplicit(lag,temp_explicit, mode=mode)
-        self.LatexPrint(Lag)  
-        print('explciit')
         #__________check if tuple is passed__________
         if not isinstance(vev_value,tuple):
             raise Exception("vev should be given as a tuple")
@@ -2095,7 +2108,6 @@ class Lagrangian():
             else:
                 non_brok_ind.append(a)
 
-        print(broken_indices, broken_value, non_brok_ind)
         name_list1,name_list2=[],[]
         
         #_____creating the pseudo singlet names___________
@@ -2115,13 +2127,11 @@ class Lagrangian():
                     else:
                         new_list.append(small_list[m]+'_s')
                 components.extend(new_list)     
-        print(components)                                                                             
         for i in broken_indices:
             name_list1.append(components[i])
         for i in non_brok_ind:
             name_list2.append(tb_replaced.name+components[i])
             name_list2.append(tb_replaced_dag.name +components[i])
-        print(name_list1, name_list2)
         final ,rest= [],[]
         if temp_explicit==[]:
             name_list1=[tb_replaced.name,tb_replaced_dag.name]
@@ -2146,7 +2156,6 @@ class Lagrangian():
                     continue
         for m in rest:
             Lag.remove(m)
-        self.LatexPrint(Lag)
         for n in Lag:
             final.extend(self._give_vev_mapping(n,replace_field,\
                          name_list1,broken_value))

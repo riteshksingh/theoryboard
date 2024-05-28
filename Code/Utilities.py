@@ -104,7 +104,6 @@ def group_same_strings( big_list):
 
 #&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 def explicitname(rep_list):
-    print(rep_list)
     explicit_name='_x'
     for x in rep_list:
         if x.singlet==False:

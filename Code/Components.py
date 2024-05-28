@@ -47,30 +47,35 @@ class Group():
 
       
         flag=0
-        ##---------incliding Lie Algebra Package---------------------------------
-        #if 'LA' in kwargs.keys():
-        #    flag=1
-        #    arguments=kwargs['LA']
-        #    #print(arguments)
-        #    self.LA=LieAlgebra(arguments[0], arguments[1])
-        #    #print(self.LA)
-        #    self.adjoint_rep=Rep(self.index_name, self, LARep=[self.LA, self.LA.adj_rep()])
-        #    self.dim=self.adjoint_rep.dim
-        #    self.Nroots=(self.dim-self.LA.rank)/2
-        #else:
-        #    self.LA=None
-        #------------------adjoint rep------------------------------------------
-        if 'dim' in kwargs.keys():
-            if flag==1:
-                pass
-            elif kwargs['dim']!=None:
-                self.adjoint_rep = Rep(self.index_name, self, dim=kwargs['dim'])   
+        #---------including Lie Algebra Package---------------------------------
+        if 'LA' in kwargs.keys():
+            flag=1
+            arguments=kwargs['LA']
+            print(arguments)
+            self.LA=LieAlgebra(arguments[0], arguments[1])
+            print(self.LA)
+            self.adjoint_rep=Rep(self.index_name, self,
+                   LARep=[self.LA, self.LA.adj_rep()])
+            self.dim=self.adjoint_rep.dim
+            self.Nroots=(self.dim-self.LA.rank)/2
+        else:
+            self.LA=None
+        #-------------adjoint rep--------------------------------
+            if 'dim' in kwargs.keys():
+                print('inside dim')
+                if flag==1:
+                    pass
+                elif kwargs['dim']!=None:
+                    self.adjoint_rep = Rep(self.index_name, 
+                                       self, 
+                                       dim=kwargs['dim'])   
                                  
                                                                                     #why create it?       
-        else:
-            self.adjoint_rep = Rep( self.index_name, self, dim=None)
-        print(self.adjoint_rep)
-         #------------------adjoint rep------------------------------------------
+            else:
+                print('inside else')
+                self.adjoint_rep = Rep( self.index_name, self, dim=None)
+                print(self.adjoint_rep)
+         #-------------adjoint rep-------------------------------
         if 'Nroots' in kwargs.keys():
             if flag==1:
                 pass
@@ -83,7 +88,7 @@ class Group():
             self.f=None
                                                                                     #why create it?       
             
-    #===========================================================================
+    #=========================================================
     def f_matrix(self, idx=[1]): #this need to be written using the constant Tensor 
         #create the structure constants of the adjoint representation
         
@@ -133,7 +138,7 @@ class Rep():
     rep_dict = {}
     T_name = []
 
-    #===========================================================================
+    #========================================================
     def __init__(self, name, group,singlet=False,**kwargs):
         #main attributes includes name, group and singlet.
         #dim is optional. rest of the attributes can be added as kwargs
@@ -155,15 +160,17 @@ class Rep():
         if self.name not in Rep.rep_dict:
             Rep.rep_dict.update({self.name: self})
         else:
+            print(self.name)
+            print(Rep.rep_dict)
             raise Exception ("Already defined name!")
-        ##---Representation from LiePy--------------------------------------------
-        #if 'LARep' in kwargs.keys():
-        #    arguments=kwargs['LARep']
-        #    #print(arguments)
-        #    self.LARep=Representation(arguments[0], arguments[1])
-        #    self.dim=self.LARep.weyldim
-        #else:
-        #    self.LARep=None
+        #---Representation from LiePy--------------------------
+        if 'LARep' in kwargs.keys():
+            arguments=kwargs['LARep']
+            #print(arguments)
+            self.LARep=Representation(arguments[0], arguments[1])
+            self.dim=self.LARep.weyldim
+        else:
+            self.LARep=None
             
         if 'dim' in kwargs.keys():
             if 'LARep' in kwargs.keys():
